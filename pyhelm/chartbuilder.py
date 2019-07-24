@@ -101,7 +101,6 @@ class ChartBuilder(object):
 
         return os.path.join(self._source_tmp_dir, subpath)
 
-
     def source_cleanup(self):
         '''
         Cleanup source
@@ -116,9 +115,9 @@ class ChartBuilder(object):
         chart_yaml = yaml.safe_load(ChartBuilder.read_file(os.path.join(self.source_directory, 'Chart.yaml')))
 
         if 'version' not in chart_yaml or \
-           'name' not in chart_yaml:
-           self._logger.error("Chart missing required fields")
-           return
+                'name' not in chart_yaml:
+            self._logger.error("Chart missing required fields")
+            return
 
         default_chart_yaml = defaultdict(str, chart_yaml)
 
@@ -135,18 +134,19 @@ class ChartBuilder(object):
         '''
         Return (non-template) files in this chart
         '''
-        # TODO(yanivoliver): add support for .helmignore
         # TODO(yanivoliver): refactor seriously to be similar to what Helm does
         #                    (https://github.com/helm/helm/blob/master/pkg/chartutil/load.go)
         chart_files = []
         for root, _, files in os.walk(self.source_directory):
             if root.endswith("charts") or root.endswith("templates"):
                 continue
-            yaml_files = [file for file in files
-                         if file.endswith('.yaml') and
-                         file != "Chart.yaml" and file != "values.yaml"]
-            for file in yaml_files:
+            yaml_files = self.remove_helmignored_files(files, root)
 
+            yaml_files = [file
+                          for file in yaml_files
+                          if file.endswith('.yaml')
+                          and file != "Chart.yaml" and file != "values.yaml"]
+            for file in yaml_files:
                 filename = os.path.relpath(os.path.join(root, file),
                                            self.source_directory)
 
@@ -159,8 +159,20 @@ class ChartBuilder(object):
 
                 chart_files.append(Any(type_url=filename, value=ChartBuilder.read_file(os.path.join(root, file))))
 
-
         return chart_files
+
+    @staticmethod
+    def remove_helmignored_files(self, files, root):
+        if os.path.exists('.helmignore'):
+            with open(root + '/.helmignore', 'r+') as helmignore_file:
+                helmignore_files = [line
+                                    for line in helmignore_file.readlines()
+                                    if not line.lstrip().startswith('#')]
+                helmignore_file.close()
+                return [file
+                        for file in files
+                        if file not in helmignore_files]
+        return []
 
     def get_values(self):
         '''
@@ -203,7 +215,7 @@ class ChartBuilder(object):
                 template_name = template_name.replace("\\", "/")
 
                 templates.append(Template(name=template_name,
-                                          data=ChartBuilder.read_file(os.path.join(root,tpl_file))))
+                                          data=ChartBuilder.read_file(os.path.join(root, tpl_file))))
         return templates
 
     def get_helm_chart(self):
@@ -217,7 +229,7 @@ class ChartBuilder(object):
         dependencies = []
 
         for chart in self.chart.get('dependencies', []):
-            self._logger.info("Building dependency chart %s for release %s", 
+            self._logger.info("Building dependency chart %s for release %s",
                               chart.name, self.chart.name)
             dependencies.append(ChartBuilder(chart).get_helm_chart())
 
@@ -241,7 +253,6 @@ class ChartBuilder(object):
         with codecs.open(path, encoding='utf-8', errors='ignore') as fd:
             content = fd.read()
         return bytes(bytearray(content, encoding='utf-8'))
-
 
     def dump(self):
         '''
