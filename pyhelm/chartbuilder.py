@@ -139,14 +139,13 @@ class ChartBuilder(object):
         # TODO(yanivoliver): refactor seriously to be similar to what Helm does
         #                    (https://github.com/helm/helm/blob/master/pkg/chartutil/load.go)
         chart_files = []
-
         for root, _, files in os.walk(self.source_directory):
             if root.endswith("charts") or root.endswith("templates"):
                 continue
-
-            for file in files:
-                if file in (".helmignore", "Chart.yaml", "values.toml", "values.yaml"):
-                    continue
+            yaml_files = [file for file in files
+                         if file.endswith('.yaml') and
+                         file != "Chart.yaml" and file != "values.yaml"]
+            for file in yaml_files:
 
                 filename = os.path.relpath(os.path.join(root, file),
                                            self.source_directory)
