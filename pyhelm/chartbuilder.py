@@ -27,7 +27,7 @@ class ChartBuilder(object):
 
     _logger = logger.get_logger('ChartBuilder')
 
-    def __init__(self, chart, parent=None):
+    def __init__(self, chart, values_files, parent=None):
         '''
         Initialize the ChartBuilder class
 
@@ -47,6 +47,7 @@ class ChartBuilder(object):
 
         # extract, pull, whatever the chart from its source
         self.source_directory = self.source_clone()
+        self.values_files = values_files
 
     def source_clone(self):
         '''
@@ -141,11 +142,8 @@ class ChartBuilder(object):
             if root.endswith("charts") or root.endswith("templates"):
                 continue
             yaml_files = self.remove_helmignored_files(files, root)
+            yaml_files = self.remove_necessary_files(yaml_files)
 
-            yaml_files = [file
-                          for file in yaml_files
-                          if file.endswith('.yaml')
-                          and file != "Chart.yaml" and file != "values.yaml"]
             for file in yaml_files:
                 filename = os.path.relpath(os.path.join(root, file),
                                            self.source_directory)
@@ -162,16 +160,27 @@ class ChartBuilder(object):
         return chart_files
 
     @staticmethod
+    def remove_necessary_files(self, yaml_files):
+        yaml_files = [file
+                      for file in yaml_files
+                      if file.endswith('.yaml')
+                      and file != "Chart.yaml" and file != "values.yaml"]
+        return yaml_files
+
+    @staticmethod
     def remove_helmignored_files(self, files, root):
         if os.path.exists('.helmignore'):
             with open(root + '/.helmignore', 'r+') as helmignore_file:
                 helmignore_files = [line
                                     for line in helmignore_file.readlines()
+                                    # n.b. below: this is a pep-8 standard that comment lines start with `# `
+                                    # but instead I chose to just see if it starts with a `#` to be flexible
                                     if not line.lstrip().startswith('#')]
                 helmignore_file.close()
                 return [file
                         for file in files
                         if file not in helmignore_files]
+                # n.b. this may not work with directory/file paths in .helmignore, unit tests are necessary first
         return []
 
     def get_values(self):
