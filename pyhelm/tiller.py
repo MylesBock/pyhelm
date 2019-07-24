@@ -176,12 +176,19 @@ class Tiller(object):
     def install_release(self, chart, namespace, dry_run=False,
                         name=None, values=None, wait=False,
                         disable_hooks=False, reuse_name=False,
-                        disable_crd_hook=False, description=""):
+                        disable_crd_hook=False, overrides=False, description=""):
+        """
+        Prepare overrides, note it only supports one file at the moment
+        """
+
         """
         Create a Helm Release
         """
-
-        values = Config(raw=yaml.safe_dump(values or {}))
+        # now this is where it gets tricky
+        # raw is what it handles in terms of golang templates
+        # values is what it utilizes when
+        values = Config(raw=yaml.safe_dump(values or {}),
+                        values=yaml.safe_dump(overrides or {}))
 
         stub = ReleaseServiceStub(self._channel)
         release_request = InstallReleaseRequest(

@@ -47,6 +47,10 @@ class ChartBuilder(object):
 
         # extract, pull, whatever the chart from its source
         self.source_directory = self.source_clone()
+
+        # n.b.: these are later referred to as `overrides`
+        # but they are what replace values in the chart/values.yaml
+        # when handled by `Tiller`
         self.values_files = values_files
 
     def source_clone(self):
@@ -183,6 +187,13 @@ class ChartBuilder(object):
                 # n.b. this may not work with directory/file paths in .helmignore, unit tests are necessary first
         return []
 
+    def get_overrides(self):
+        '''
+        Return the files intended to override the chart values/values.yaml entries
+        :return: overrides_list
+        '''
+        return [file for file in self.get_files() if file in self.values_files]
+
     def get_values(self):
         '''
         Return the chart (default) values
@@ -247,7 +258,7 @@ class ChartBuilder(object):
             templates=self.get_templates(),
             dependencies=dependencies,
             values=self.get_values(),
-            files=self.get_files(),
+            files=self.get_files()
         )
 
         self._helm_chart = helm_chart
