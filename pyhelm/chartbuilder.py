@@ -134,6 +134,13 @@ class ChartBuilder(object):
             version=str(default_chart_yaml['version']),
             appVersion=str(default_chart_yaml['appVersion'])
         )
+    @staticmethod
+    def is_ignorable(root):
+        if not root.endswith("charts") and not root.endswith("templates"):
+            hidden_files = [str_split for str_split in root.split(os.sep)[1:]
+                            if str_split.startswith('.')]
+            return len(hidden_files) > 0
+        return True
 
     def get_files(self):
         '''
@@ -143,27 +150,23 @@ class ChartBuilder(object):
         #                    (https://github.com/helm/helm/blob/master/pkg/chartutil/load.go)
         chart_files = []
         for root, _, files in os.walk(self.source_directory):
-            if root.endswith("charts") or root.endswith("templates")\
-                    or root.split(os.sep)[-1].startswith(b'.')\
-                    or root.split(os.sep)[0].startswith(b'.'):
-                continue
-            helmignore_list = ChartBuilder.get_helmignore(root=root)
-            yaml_files = ChartBuilder.remove_helmignored_files(files=files, root=root)
-            yaml_files = ChartBuilder.remove_necessary_files(yaml_files=yaml_files)
+            if not ChartBuilder.is_ignorable(root):
+                helmignore_list = ChartBuilder.get_helmignore(root=root)
+                absolute_paths = [os.path.join(root, file) for file in files]
+                yaml_files = ChartBuilder.remove_helmignored_files(files=absolute_paths, helmignore_list=helmignore_list)
+                yaml_files = ChartBuilder.remove_necessary_files(yaml_files=yaml_files)
+                for file in yaml_files:
+                    filename = os.path.relpath(file,
+                                               self.source_directory)
 
-            for file in yaml_files:
-                filename = os.path.relpath(os.path.join(root, file),
-                                           self.source_directory)
+                    # TODO(yanivoliver): Find a better solution.
+                    # We need this in order to support charts on Windows - Tiller will look
+                    # for the files it uses using the relative path, using Linuxish
+                    # path seperators (/). Thus, sending the file list to Tiller
+                    # from a Windows machine the lookup will fail.
+                    filename = filename.replace("\\", "/")
 
-                # TODO(yanivoliver): Find a better solution.
-                # We need this in order to support charts on Windows - Tiller will look
-                # for the files it uses using the relative path, using Linuxish
-                # path seperators (/). Thus, sending the file list to Tiller
-                # from a Windows machine the lookup will fail.
-                filename = filename.replace("\\", "/")
-
-                chart_files.append(Any(type_url=filename, value=ChartBuilder.read_file(os.path.join(root, file))))
-
+                    chart_files.append(Any(type_url=filename, value=ChartBuilder.read_file(file)))
         return chart_files
 
     @staticmethod
@@ -171,32 +174,34 @@ class ChartBuilder(object):
         yaml_files = [file
                       for file in yaml_files
                       if file.endswith('.yaml')
-                      and file != "Chart.yaml" and file != "values.yaml"]
+                      and not file.endswith("Chart.yaml")
+                      and not file.endswith("values.yaml")]
         return yaml_files
 
     @staticmethod
     def remove_helmignored_files(files, helmignore_list):
-        print(helmignore_list)
-        return [file
-                for file in files
-                if not file not in helmignore_list]
+        helmignored = [file
+                       for file in files
+                       if file not in helmignore_list]
+        return helmignored
 
     @staticmethod
     def get_helmignore(root):
-        with open(root + '/.helmignore', 'r+') as helmignore_file:
-            helmignore_files = [line
-                                for line in helmignore_file.readlines()
-                                if not line.lstrip().startswith('#')]
-            print(helmignore_files)
-            helmignore_file.close()
-            return helmignore_files
+        if os.path.exists(f"{root}/.helmignore"):
+            with open(f"{root}/.helmignore", 'r+') as helmignore_file:
+                helmignore_files = [os.path.join(root, line.rstrip('\n'))
+                                    for line in helmignore_file.readlines()
+                                    if not line.lstrip().startswith('#')]
+                helmignore_file.close()
+                return helmignore_files
+        return []
 
     def get_overrides(self):
         '''
         Return the files intended to override the chart values/values.yaml entries
         :return: overrides_list
         '''
-        return [file for file in self.get_files() if file in self.values_files]
+        return [file for file in self.get_files() if file.type_url in self.values_files]
 
     def get_values(self):
         '''

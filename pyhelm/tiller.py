@@ -1,11 +1,12 @@
 import grpc
 import yaml
+import json
 import pyhelm.logger as logger
 
-from hapi.services.tiller_pb2 import ReleaseServiceStub, ListReleasesRequest, \
+from hapi.services.tiller_pb2 import ListReleasesRequest, \
     InstallReleaseRequest, UpdateReleaseRequest, UninstallReleaseRequest, \
     GetReleaseStatusRequest, GetReleaseContentRequest
-from hapi.chart.chart_pb2 import Chart
+from hapi.services.tiller_pb2_grpc import ReleaseServiceStub
 from hapi.chart.config_pb2 import Config
 from hapi.release.status_pb2 import _STATUS
 
@@ -176,20 +177,23 @@ class Tiller(object):
     def install_release(self, chart, namespace, dry_run=False,
                         name=None, values=None, wait=False,
                         disable_hooks=False, reuse_name=False,
-                        disable_crd_hook=False, overrides=False, description=""):
+                        disable_crd_hook=False, overrides=[], description="", chartbuilder=None):
         """
         Prepare overrides, note it only supports one file at the moment
         """
-
+        standard_values = {}
+        if overrides is not None and chartbuilder is not None:
+            standard_values = yaml.safe_load(chartbuilder.get_values().raw)
+            for file in overrides:
+                standard_values.update(yaml.safe_load(file.value))
         """
         Create a Helm Release
         """
         # now this is where it gets tricky
-        # raw is what it handles in terms of golang templates
-        # values is what it utilizes when
-        values = Config(raw=yaml.safe_dump(values or {}),
-                        values=yaml.safe_dump(overrides or {}))
-
+        # since the overrides are appended 'left to right'
+        # the later mappings override the standard values in `values.yaml`
+        # the standard helm client does something similar but this 'works' (and is a kludge)
+        values = Config(raw=yaml.safe_dump(standard_values))
         stub = ReleaseServiceStub(self._channel)
         release_request = InstallReleaseRequest(
             chart=chart,

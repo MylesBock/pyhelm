@@ -8,6 +8,12 @@ How to use PyHelm
 -----------------
 In order to install a Helm chart using PyHelm, you can perform the following steps:
 
+**Preparing the Tiller port forward**
+
+.. code-block:: bash
+
+    kubectl port-forward $(kubectl get pods -l app=helm | awk 'NR>1 {print $1}') 44134 -n some-namespace
+
 **Loading a chart using ChartBuilder**
 
 .. code-block:: python
@@ -41,7 +47,7 @@ The helm gRPC libraries are located in the hapi directory.  They were generated 
 
     git clone https://github.com/kubernetes/helm ./helm
     pip install grpcio-tools
-    python -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/chart/*
-    python -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/services/*
-    python -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/release/*
-    python -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/version/*
+    python3 -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/chart/*
+    python3 -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/services/*
+    python3 -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/release/*
+    python3 -m grpc_tools.protoc -I helm/_proto --python_out=. --grpc_python_out=. helm/_proto/hapi/version/*
