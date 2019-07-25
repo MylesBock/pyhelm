@@ -143,8 +143,11 @@ class ChartBuilder(object):
         #                    (https://github.com/helm/helm/blob/master/pkg/chartutil/load.go)
         chart_files = []
         for root, _, files in os.walk(self.source_directory):
-            if root.endswith("charts") or root.endswith("templates"):
+            if root.endswith("charts") or root.endswith("templates")\
+                    or root.split(os.sep)[-1].startswith(b'.')\
+                    or root.split(os.sep)[0].startswith(b'.'):
                 continue
+            helmignore_list = ChartBuilder.get_helmignore(root=root)
             yaml_files = ChartBuilder.remove_helmignored_files(files=files, root=root)
             yaml_files = ChartBuilder.remove_necessary_files(yaml_files=yaml_files)
 
@@ -172,20 +175,21 @@ class ChartBuilder(object):
         return yaml_files
 
     @staticmethod
-    def remove_helmignored_files(files, root):
-        if os.path.exists('.helmignore'):
-            with open(root + '/.helmignore', 'r+') as helmignore_file:
-                helmignore_files = [line
-                                    for line in helmignore_file.readlines()
-                                    # n.b. below: this is a pep-8 standard that comment lines start with `# `
-                                    # but instead I chose to just see if it starts with a `#` to be flexible
-                                    if not line.lstrip().startswith('#')]
-                helmignore_file.close()
-                return [file
-                        for file in files
-                        if file not in helmignore_files]
-                # n.b. this may not work with directory/file paths in .helmignore, unit tests are necessary first
-        return []
+    def remove_helmignored_files(files, helmignore_list):
+        print(helmignore_list)
+        return [file
+                for file in files
+                if not file not in helmignore_list]
+
+    @staticmethod
+    def get_helmignore(root):
+        with open(root + '/.helmignore', 'r+') as helmignore_file:
+            helmignore_files = [line
+                                for line in helmignore_file.readlines()
+                                if not line.lstrip().startswith('#')]
+            print(helmignore_files)
+            helmignore_file.close()
+            return helmignore_files
 
     def get_overrides(self):
         '''
