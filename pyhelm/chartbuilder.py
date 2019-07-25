@@ -145,8 +145,8 @@ class ChartBuilder(object):
         for root, _, files in os.walk(self.source_directory):
             if root.endswith("charts") or root.endswith("templates"):
                 continue
-            yaml_files = self.remove_helmignored_files(files, root)
-            yaml_files = self.remove_necessary_files(yaml_files)
+            yaml_files = ChartBuilder.remove_helmignored_files(files, root)
+            yaml_files = ChartBuilder.remove_necessary_files(yaml_files)
 
             for file in yaml_files:
                 filename = os.path.relpath(os.path.join(root, file),
