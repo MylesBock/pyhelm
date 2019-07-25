@@ -146,7 +146,7 @@ class ChartBuilder(object):
             if root.endswith("charts") or root.endswith("templates"):
                 continue
             yaml_files = ChartBuilder.remove_helmignored_files(files=files, root=root)
-            yaml_files = ChartBuilder.remove_necessary_files(yaml_files)
+            yaml_files = ChartBuilder.remove_necessary_files(yaml_files=yaml_files)
 
             for file in yaml_files:
                 filename = os.path.relpath(os.path.join(root, file),
@@ -164,7 +164,7 @@ class ChartBuilder(object):
         return chart_files
 
     @staticmethod
-    def remove_necessary_files(self, yaml_files):
+    def remove_necessary_files(yaml_files):
         yaml_files = [file
                       for file in yaml_files
                       if file.endswith('.yaml')
@@ -172,7 +172,7 @@ class ChartBuilder(object):
         return yaml_files
 
     @staticmethod
-    def remove_helmignored_files(self, files, root):
+    def remove_helmignored_files(files, root):
         if os.path.exists('.helmignore'):
             with open(root + '/.helmignore', 'r+') as helmignore_file:
                 helmignore_files = [line
